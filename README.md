@@ -47,7 +47,7 @@ Java17 project:
 https://github.com/vijay2181/java-maven-SampleWarApp.git
 
 ```
-## JENKINS PIPELINE SCRIPT:
+## PIPELINE SETUP:
 
 
 ![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/479dc3c9-7d46-4fbc-ba25-94bd3bc572c3)
@@ -127,6 +127,34 @@ we need to install sonarqube on a seperate server and add sonarqube server detai
 ---------------------------------------------------------------------
 
 mvn sonar:sonar
+```
+
+![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/31d7ddf2-496f-4940-ab4c-90fbeb8c3fbe)
+
+
+Jenkins Pipeleine:
+------------------
+```
+pipeline {
+    agent any
+    environment {
+        PATH = "${tool 'MAVEN3.9.5'}/bin:$PATH"
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'feature-add-pom-17', url: 'https://github.com/vijay2181/java-maven-SampleWarApp.git'
+            }
+        }
+        stage('Build') {
+            steps {
+                sh 'mvn sonar:sonar'
+            }
+        }
+        // Add more stages as needed
+    }
+}
+
 ```
 
 
