@@ -50,6 +50,15 @@ https://github.com/vijay2181/java-maven-SampleWarApp.git
 ## PIPELINE SETUP:
 
 
+you can find the official docs for sample sonar stage for jenkins pipeline
+
+![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/4c18f9f9-cde5-4002-ac5a-8930ed174aa6)
+
+
+```
+https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/jenkins-extension-sonarqube/
+```
+
 ![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/479dc3c9-7d46-4fbc-ba25-94bd3bc572c3)
 
 
