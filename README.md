@@ -174,6 +174,8 @@ install sonarcli scanner on jenkis server itself
 -------------------------------------------------
 
 ```
+login to jenkins master server
+
 cd /tmp/
 wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
 unzip sonar-scanner-cli-5.0.1.3006-linux.zip
@@ -211,8 +213,6 @@ you can find the official docs for sample sonar stage for jenkins pipeline
 https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/jenkins-extension-sonarqube/
 ```
 
-![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/479dc3c9-7d46-4fbc-ba25-94bd3bc572c3)
-
 
 ![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/225c47d0-cb95-404f-b637-94115b072b16)
 
@@ -224,25 +224,144 @@ environment {
 
 ![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/45550432-4ccd-49bf-8bfb-c644438dc60b)
 
+
+### confifigure sonarqube token inside jenkins server
+
+![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/81321f89-26fe-4eaf-a6f7-3b019869080f)
+
+![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/2a293279-3130-4407-a4e8-29bbec3809c4)
+
+
+
+### dynamically list all git branches inside jenkins pipeline
+
 ```
+we need to dynamically list all git branches -> for this purpose we need to install Active Choices plugin, in that use -> Active Choices Reactive Parameter
+https://medium.com/@g4b1s/dynamically-list-git-branches-in-jenkins-job-parameter-3e6e849f8a98
+
+Active Choices Reactive Parameter
+name: branches
+groovy script:
+
+def gettags = ("git ls-remote -t -h https://github.com/vijay2181/java-maven-SampleWarApp.git").execute()
+return gettags.text.readLines().collect { 
+  it.split()[1].replaceAll('refs/heads/', '').replaceAll('refs/tags/', '').replaceAll("\\^\\{\\}", '')
+}
+
+```
+
+![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/139a4720-b8b5-43d1-a0b5-fd08feeb1d78)
+
+![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/d83c2998-fae1-4129-9423-30ca796e1c37)
+
+![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/9fb6bf34-a855-4ed5-b649-e2acdb7ea8ed)
+
+![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/822edb4c-fce3-48c6-af02-b46e52622ce5)
+
+- come down and apply
+- now execute below steps for git branches dynamic listing
+
+- ![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/90d3ba40-4027-4df3-a6bb-b23f82aa77ed)
+
+
+- we need to approve the script
+- manage jenkins -> In process script approval -> approve the script
+- go back to job and reload the page, you will get drop downs
+
+![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/8d962c74-6cfb-447d-ad93-b9e506a71c3e)
+
+
+
+
+
+```
+we need to dynamically list all git branches -> for this purpose we need to install Active Choices plugin, in that use -> Active Choices Reactive Parameter
+Active Choices Reactive Parameter
+name: branches
+groovy script:
+def gettags = ("git ls-remote -t -h https://github.com/vijay2181/java-maven-SampleWarApp.git").execute()
+return gettags.text.readLines().collect { 
+  it.split()[1].replaceAll('refs/heads/', '').replaceAll('refs/tags/', '').replaceAll("\\^\\{\\}", '')
+}
+
+
 pipeline {
     agent any
+
+    stages {
+        stage('print user selected branch'){
+            steps{
+                     echo "${params.branches}"
+            }
+        }
+    }
+}
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+pipeline {
+    agent {
+        label 'master'
+    }
     environment {
-        PATH = "${tool 'MAVEN3.9.5'}/bin:$PATH"
+        MAVEN = "${tool 'MAVEN3.9.5'}/bin/mvn"
+        SONAR_HOST_URL = 'http://52.10.226.100:9000'  // this will override the host url inside sonar.properties file
+        SONAR_TOKEN = credentials('sonar-token')
+        SONAR_PROJECT_KEY = 'test_project'
+        SONAR_PROJECT_NAME = 'test_project'
     }
     stages {
+        
         stage('Checkout') {
             steps {
                 git branch: 'feature-add-pom-17', url: 'https://github.com/vijay2181/java-maven-SampleWarApp.git'
             }
         }
-        stage('Build') {
+        
+        stage('build maven project') {
             steps {
-                sh 'mvn sonar:sonar'
+                sh '$MAVEN clean package'
             }
         }
-        // Add more stages as needed
-    }
+
+        stage('Run SonarScanner CLI on Maven project') {
+            steps {
+                sh '/tmp/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner -Dsonar.host.url="${SONAR_HOST_URL}" -Dsonar.token="${SONAR_TOKEN}" '
+            }
+        }
+
+        stage('Sonar Status Check') {
+            steps {
+                sh '''
+                    #!/bin/bash
+                    echo "This is a shell script within a Jenkins pipeline stage"
+                    response=$(curl -u "${SONAR_TOKEN}": "${SONARQUBE_URL}/api/qualitygates/project_status?projectKey=${SONAR_PROJECT_KEY}")
+                    project_status=$(echo "$response" | jq -r '.projectStatus.status')
+                    echo "Project Status: $project_status"
+                    if [ "$project_status" == "OK" ]; then
+                        echo "Project Status is OK."
+                    else
+                        echo "Project Status is ERROR."
+                    fi
+                '''
+            }
+        }
+		
+	}
 }
 
 ```
