@@ -45,37 +45,13 @@ Java17 project:
 ===============
 - take java 17 project for maven build, because we have java17 installed for jenkins
 https://github.com/vijay2181/java-maven-SampleWarApp.git
-
-```
-## PIPELINE SETUP:
-
-
-you can find the official docs for sample sonar stage for jenkins pipeline
-
-![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/4c18f9f9-cde5-4002-ac5a-8930ed174aa6)
-
-
-```
-https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/jenkins-extension-sonarqube/
 ```
 
-![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/479dc3c9-7d46-4fbc-ba25-94bd3bc572c3)
 
-
-![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/225c47d0-cb95-404f-b637-94115b072b16)
-
-```
-environment {
-    PATH = "${tool 'MAVEN3.9.5'}/bin:$PATH"
-}
-```
-
-![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/45550432-4ccd-49bf-8bfb-c644438dc60b)
-
+SONARQUBE:
+==========
 
 ```
-(SONARQUBE) :
-============
 - sonarqube tool is for code scanning, quality checking, publish qulaity report to sonarweb
 - we need to install sonarqube on a seperate server
 
@@ -126,12 +102,16 @@ rm -rf /opt/sonarqube-10.4.1.88267/temp
 
 ```
 
-login to snarqube and create project plus token for external(jenkins,cli) authentication into sonarqube:
-=========================================================================================================
+### login to snarqube and create project plus token for external(jenkins,cli) authentication into sonarqube:
+
 
 ![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/a159248c-64a0-43ad-8c57-9bc7f722f6d6)
 
+
+
 - create a new project(local project) for our code analysis report publish, so to this project we can publish our reports
+
+  
 
 ![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/b3a55c50-50a6-4e51-a1ea-a8db12ebc020)
 
@@ -143,8 +123,11 @@ login to snarqube and create project plus token for external(jenkins,cli) authen
 
 ![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/81a563d9-d99c-4031-b98f-6a18780d53ee)
 
+
 - for this test_project we will publish static code anaylsis report
 - next we will create a token for authentication
+
+### sonarqube token
 
 ![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/cfab7a44-2318-4db5-8fb6-02fea7d1b12c)
 
@@ -184,8 +167,8 @@ The choice between using the SonarQube Scanner CLI versus the specific integrati
 
 - we need to install this, so im going to install this on same jenkins server cli
 
-
 ```
+
 
 install sonarcli scanner on jenkis server itself
 -------------------------------------------------
@@ -219,8 +202,27 @@ sonar.java.binaries=target/classes
 Jenkins Pipeleine:
 ------------------
 
-![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/31d7ddf2-496f-4940-ab4c-90fbeb8c3fbe)
+you can find the official docs for sample sonar stage for jenkins pipeline
 
+![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/4c18f9f9-cde5-4002-ac5a-8930ed174aa6)
+
+
+```
+https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/jenkins-extension-sonarqube/
+```
+
+![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/479dc3c9-7d46-4fbc-ba25-94bd3bc572c3)
+
+
+![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/225c47d0-cb95-404f-b637-94115b072b16)
+
+```
+environment {
+    PATH = "${tool 'MAVEN3.9.5'}/bin:$PATH"
+}
+```
+
+![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/45550432-4ccd-49bf-8bfb-c644438dc60b)
 
 ```
 pipeline {
