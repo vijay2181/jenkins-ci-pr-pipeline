@@ -176,28 +176,33 @@ install sonarcli scanner on jenkis server itself
 ```
 login to jenkins master server
 
-cd /tmp/
-wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
-unzip sonar-scanner-cli-5.0.1.3006-linux.zip
+cd /opt/
+sudo wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+sudo unzip sonar-scanner-cli-5.0.1.3006-linux.zip
 
 - now we need to inform sonarscanner where our sonarqube is running(server ip, port, token etc..), because sonarscanner can run independently, in sonar.properties file we need to mention
 
-cd /tmp/sonar-scanner-5.0.1.3006-linux/conf
-vi sonar.properties
+cd /opt/sonar-scanner-5.0.1.3006-linux/conf
+sudo vi sonar.properties
+-------------------------------------------------------------------------------------------------------
 #----- Default SonarQube server
-sonar.host.url=http://52.10.226.100:9000
-sonar.token=sqa_1e72010ca912043557aa2bb7e37e3696f3333
+sonar.host.url=http://52.10.226.100:9000                	#this can be overriden at the command
+sonar.token=sqa_1e72010ca912043557aa2bb7e37e3696f3333  		 #this can be overriden at the command
 sonar.projectKey=test_project
 sonar.projectname=test_project
-sonar.sources=src/main/java
-sonar.java.binaries=target/classes
+sonar.sources=src/main/java          				#src location of project
+sonar.java.binaries=target/classes   				#target location of project
+--------------------------------------------------------------------------------------------------------
 
+chmod +x /opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner
+sudo chown -R jenkins:jenkins sonar-scanner-5.0.1.3006-linux/
 
-- we need to goto project directory and run sonar scanner from there (src/main/java)
-- sonar scanner location -> /tmp/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner
+- we need to goto project directory(/var/lib/jenkins/workspace/ci-pr) and run sonar scanner from there where (src/main/java) (target/classes ) folders are present
+- sonar scanner location -> /opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner
 - so here we are using generic sonar scanner which can be used for maven,gradle,ant etc....
 
-/tmp directory are more permissive, allowing Jenkins to execute the SonarScanner CLI without encountering permission denied errors
+/opt, /tmp directory are more permissive, allowing Jenkins to execute the SonarScanner CLI without encountering permission denied errors
+The jenkins user typically has limited permissions to execute binaries in the home directory of other users, such as /home/ec2-user,
 
 ```
 
@@ -212,17 +217,6 @@ you can find the official docs for sample sonar stage for jenkins pipeline
 ```
 https://docs.sonarsource.com/sonarqube/latest/analyzing-source-code/scanners/jenkins-extension-sonarqube/
 ```
-
-
-![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/225c47d0-cb95-404f-b637-94115b072b16)
-
-```
-environment {
-    PATH = "${tool 'MAVEN3.9.5'}/bin:$PATH"
-}
-```
-
-![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/45550432-4ccd-49bf-8bfb-c644438dc60b)
 
 
 ### confifigure sonarqube token inside jenkins server
@@ -259,14 +253,13 @@ return gettags.text.readLines().collect {
 ![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/822edb4c-fce3-48c6-af02-b46e52622ce5)
 
 - come down and apply
-- now execute below steps for git branches dynamic listing
-
-- ![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/90d3ba40-4027-4df3-a6bb-b23f82aa77ed)
-
-
-- we need to approve the script
+- we need to approve the script if necessary
 - manage jenkins -> In process script approval -> approve the script
 - go back to job and reload the page, you will get drop downs
+- now execute below steps for git branches dynamic listing
+
+![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/90d3ba40-4027-4df3-a6bb-b23f82aa77ed)
+
 
 ![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/8d962c74-6cfb-447d-ad93-b9e506a71c3e)
 
@@ -275,10 +268,6 @@ return gettags.text.readLines().collect {
 
 
 ```
-we need to dynamically list all git branches -> for this purpose we need to install Active Choices plugin, in that use -> Active Choices Reactive Parameter
-Active Choices Reactive Parameter
-name: branches
-groovy script:
 def gettags = ("git ls-remote -t -h https://github.com/vijay2181/java-maven-SampleWarApp.git").execute()
 return gettags.text.readLines().collect { 
   it.split()[1].replaceAll('refs/heads/', '').replaceAll('refs/tags/', '').replaceAll("\\^\\{\\}", '')
@@ -300,56 +289,67 @@ pipeline {
 ```
 
 
+![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/225c47d0-cb95-404f-b637-94115b072b16)
+
+```
+environment {
+    PATH = "${tool 'MAVEN3.9.5'}"
+}
+```
+
+![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/45550432-4ccd-49bf-8bfb-c644438dc60b)
 
 
 
 
 
-
-
-
-
-
+#### Final Pipeline
 
 
 ```
 pipeline {
-    agent {
-        label 'master'
-    }
+    agent any
+    
     environment {
         MAVEN = "${tool 'MAVEN3.9.5'}/bin/mvn"
-        SONAR_HOST_URL = 'http://52.10.226.100:9000'  // this will override the host url inside sonar.properties file
+        SONAR_HOST_URL = 'http://54.186.90.185:9000'
         SONAR_TOKEN = credentials('sonar-token')
         SONAR_PROJECT_KEY = 'test_project'
         SONAR_PROJECT_NAME = 'test_project'
     }
+    
     stages {
-        
+
+        stage('Print Selected Branch') {
+            steps {
+               echo "${params.branches}"
+            }
+        }
+
         stage('Checkout') {
             steps {
-                git branch: 'feature-add-pom-17', url: 'https://github.com/vijay2181/java-maven-SampleWarApp.git'
+                git branch: "${params.branches}", url: 'https://github.com/vijay2181/java-maven-SampleWarApp.git'
             }
         }
         
-        stage('build maven project') {
+        stage('Build Maven Project') {
             steps {
                 sh '$MAVEN clean package'
             }
         }
-
+        
         stage('Run SonarScanner CLI on Maven project') {
             steps {
-                sh '/tmp/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner -Dsonar.host.url="${SONAR_HOST_URL}" -Dsonar.token="${SONAR_TOKEN}" '
+                sh '/opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner -Dsonar.host.url="${SONAR_HOST_URL}" -Dsonar.token="${SONAR_TOKEN}" '
             }
         }
-
+        
         stage('Sonar Status Check') {
             steps {
                 sh '''
                     #!/bin/bash
                     echo "This is a shell script within a Jenkins pipeline stage"
-                    response=$(curl -u "${SONAR_TOKEN}": "${SONARQUBE_URL}/api/qualitygates/project_status?projectKey=${SONAR_PROJECT_KEY}")
+                    response=$(curl -u "${SONAR_TOKEN}": "${SONAR_HOST_URL}/api/qualitygates/project_status?projectKey=${SONAR_PROJECT_KEY}")
                     project_status=$(echo "$response" | jq -r '.projectStatus.status')
                     echo "Project Status: $project_status"
                     if [ "$project_status" == "OK" ]; then
@@ -359,10 +359,10 @@ pipeline {
                     fi
                 '''
             }
-        }
-		
-	}
+        }       
+    }
 }
+
 
 ```
 
