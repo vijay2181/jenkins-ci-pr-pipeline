@@ -303,7 +303,7 @@ environment {
 
 
 
-#### Final Pipeline
+#### Final Release Pipeline
 
 
 ```
@@ -365,25 +365,6 @@ pipeline {
 
 
 ```
-
-
-### Configure to Trigger jenkins build when PR is raised for a branch in git repo
-
-- Install Github Pull request plugin inside jenkins, and add github token to it
-
-![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/fb24ff16-7a7e-4d43-9b03-4d7a13ee03e8)
-
-
-![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/fc4d87a7-90cd-43b4-b8e9-c61072101a40)
-
-
-![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/3ad9aaf1-6536-46a8-8c3e-b5eaffff321d)
-
-![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/f2de33d1-c245-44e4-b4a3-50b0a439eeab)
-
-- apply and save
-
-create a webhook inside git repo
 
 
 
