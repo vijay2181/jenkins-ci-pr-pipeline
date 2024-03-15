@@ -1,4 +1,6 @@
-# jenkins-ci-pr-pipeline
+# jenkins-release-pipeline
+
+we will get all branches from git repo and build the pipeline based on selected branch
 
 ## Install jenkins
 ```
