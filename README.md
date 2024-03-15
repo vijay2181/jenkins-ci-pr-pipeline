@@ -361,7 +361,12 @@ pipeline {
                     fi
                 '''
             }
-        }       
+        }
+       stage('Deploy to Next Stages') {
+          steps {
+             echo "This code can be deployable"
+          }
+       }       
     }
 }
 
