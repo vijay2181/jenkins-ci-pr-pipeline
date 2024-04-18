@@ -357,7 +357,8 @@ pipeline {
                     if [ "$project_status" == "OK" ]; then
                         echo "Project Status is OK."
                     else
-                        echo "Project Status is ERROR."
+                        echo "Project Status is ERROR. Exiting the pipeline"
+                        exit 1
                     fi
                 '''
             }
