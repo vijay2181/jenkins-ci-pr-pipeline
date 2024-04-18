@@ -375,6 +375,29 @@ pipeline {
 ```
 
 
+## Nexus Integration
+
+- in pom.xml add the nexus server details
+- before adding, we need to create two repos(release,snapshot) and add those repos urls in pom.xml
+
+![image](https://github.com/vijay2181/jenkins-release-pipeline/assets/66196388/9932b1ca-de1d-4e19-862c-288d6ef18670)
+
+
+- depending upon pom.xml version (<version>0.0.1-SNAPSHOT</version>), war will be deployed in sanpshot or release repository of nexus
+  
+![image](https://github.com/vijay2181/jenkins-release-pipeline/assets/66196388/d8d106c5-12c5-4ce2-ad42-f7a61243cc88)
+
+- add below step in jenkinsfile
+
+```
+stage('Deploy WAR file to Nexus') {
+            steps {
+                sh '$MAVEN clean deploy'
+            }
+        }
+```
+
+
 
 
 
