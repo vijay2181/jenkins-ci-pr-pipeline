@@ -330,7 +330,7 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                git branch: "${params.branches}", url: 'https://github.com/vijay2181/java-maven-SampleWarApp.git'
+                git branch: "${params.branches}", url: 'https://github.com/vijay2181/springboot-mongo-docker.git'
             }
         }
         
@@ -421,6 +421,10 @@ sudo systemctl status nexus
 
 - in pom.xml add the nexus server details
 - before adding, we need to create two repos(release,snapshot) and add those repos urls in pom.xml
+- now we need to push those jar/war files to nexus repository
+- we need create two repositories(snapshots and releases) for a project to push artifacts to nexus when build is triggered
+- nexus authentication details should be placed in maven settings.xml
+
 
 ![image](https://github.com/vijay2181/jenkins-release-pipeline/assets/66196388/9932b1ca-de1d-4e19-862c-288d6ef18670)
 
@@ -428,6 +432,79 @@ sudo systemctl status nexus
 - depending upon pom.xml version (<version>0.0.1-SNAPSHOT</version>), war will be deployed in sanpshot or release repository of nexus
   
 ![image](https://github.com/vijay2181/jenkins-release-pipeline/assets/66196388/d8d106c5-12c5-4ce2-ad42-f7a61243cc88)
+
+```
+add below tag for nexus server url inside pom.xml, before adding we need to create snapshots and releases repos for project
+the nexus id in settings.xml should be matched with pom.xml nexus id name
+
+vi /home/ec2-user/java-maven-SampleWarApp/pom.xml
+--------------------------------------------------
+            <distributionManagement>
+                        <snapshotRepository>
+                                <id>nexus</id>
+                                <url>http://54.245.43.112:8081/repository/app-snapshots/</url>
+                        </snapshotRepository>
+                        <repository>
+                                <id>nexus</id>
+                                <url>http://54.245.43.112:8081/repository/app-releases/</url>
+                        </repository>
+                </distributionManagement>
+-------------------------------------------------
+
+- add nexus credentials inside maven server settings.xml between below tags
+- but we have not installed maven software on jenkins server manually, we have installed maven through global tool configuration
+- /var/lib/jenkins/tools   --> inside this jenkins home directory we will get maven software which is installed through global tool configuration
+- /var/lib/jenkins/tools/hudson.tasks.Maven_*/maven3.8.5/conf/settings.xml
+
+vi /var/lib/jenkins/tools/hudson.tasks.Maven_*/maven3.8.5/conf/settings.xml
+add content between servers tag
+<servers>
+
+</servers>
+---------------------------
+<servers>
+   <server>
+   <id>nexus</id>
+   <username>admin</username>
+   <password>admin</password>
+   </server>
+</servers>
+------------------------------
+- add nexus repo url details in  -> pom.xml
+- add nexus repo credentails in  -> settings.xml
+
+
+- to  upload package into remote repository, we need to use below maven command
+mvn deploy
+
+
+- like this war/jar versions will be created for only snapshot repos, for releases you wont get version sub tags
+snashot repo
+0.0.1-1, 0.0.1-2, 0.0.1-3  etc...
+
+release repo
+0.0.1, 0.0.2,0.0.3 etc...
+- snapshot repos contain on going development packages
+- production packages will be uploaded to release repos
+
+my current version inside pom.xml is
+<version>0.1-SNAPSHOT</version>
+so artifacts will be only uploaded to snapshots repo
+
+but when we have releases and i remove SNAPSHOT and change the version to below
+<version>0.0.1</version>
+mvn clean deploy
+then artifacts will be only uploaded to release repo
+- if i again run mvn deploy, then i will get error
+Repository does not allow updating assets: vijay-releases (400)
+- because it wont override existing version in release repo, so we need to chnage version tag to below and run
+<version>0.0.2</version>
+- the release versions will not get override in release repos
+- we need to change any version number, then only it will allow to build
+- but you can allow to redeploy same version if you enable the option for release repo to redeploy/override
+
+
+```
 
 - add below step in jenkinsfile
 
@@ -462,7 +539,7 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                git branch: "${params.branches}", url: 'https://github.com/vijay2181/java-maven-SampleWarApp.git'
+                git branch: "${params.branches}", url: 'https://github.com/vijay2181/springboot-mongo-docker.git'
             }
         }
         
@@ -505,13 +582,168 @@ pipeline {
 }
 ```
 
-Setup Kubernetes Cluster:
+## Setup Kubernetes Cluster:
+
+- follow below link to setup k8s cluster using kubeadm
+
+```
+https://github.com/vijay2181/kubernetes-setup-using-kubeadm.git
+```
+
+## Build Stage
+
+- cofigure dockerhub password inside jenkins credential manager using secret text
+
+```
+stage("Docker Push Image") {
+            steps {
+                withCredentials([string(credentialsId: 'Docker_Password', variable: 'Docker_Password')]) {
+                    // Login to Docker Hub
+                    sh "docker login -u vijay2181 -p ${Docker_Password}"
+                }
+                // Build Docker image
+                sh "docker build -t vijay2181/springboot-mongo-docker:${env.BUILD_NUMBER} ."
+                
+                // Push Docker image to Docker Hub
+                sh "docker push vijay2181/springboot-mongo-docker:${env.BUILD_NUMBER}"
+            }
+        }
+```
+
+## Install kubectl and add kubeconfig in Jenkins server
+
+```
+sudo -i
+
+https://pwittrock.github.io/docs/tasks/tools/install-kubectl/
+
+cd ~jenkins/
+sudo curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+
+sudo chown -R jenkins:jenkins kubectl
+chmod +x ./kubectl
+ sudo mv ./kubectl /usr/local/bin/kubectl
+
+copy the config file from master to jenkins server, jenkins user home directory
+root@k8smaster:~/.kube# cat config
+
+sudo vi .kube/config
+sudo chown -R jenkins: ~jenkins/.kube/
+
+kubectl get nodes 
+
+- add /etc/hosts file from k8s master to jenkins server
+- also add below address details in /etc/hosts file of jenkins, because jenkins server dont know hostname of k8s master, incase you have added below addresses hosts file
+- sudo vi /etc/hosts
+172.31.26.79 k8smaster.example.net k8smaster
+172.31.28.26 k8sworker1.example.net k8sworker1
+172.31.21.107 k8sworker2.example.net k8sworker2
+
+- jenkins user has permission to execute kubectl commands by jenkins jobs
+
+- open 6443 port on jenkin server for kubectl and master communication
+```
+
+
+## Final Pipeline
+
+```
+pipeline {
+    agent any
+    
+    environment {
+        MAVEN = "${tool 'MAVEN3.9.5'}/bin/mvn"
+        SONAR_HOST_URL = 'http://35.94.22.107:9000'
+        SONAR_TOKEN = credentials('sonar-token')
+        SONAR_PROJECT_KEY = 'test_project'
+        SONAR_PROJECT_NAME = 'test_project'
+    }
+    
+    stages {
+
+        stage('Print Selected Branch') {
+            steps {
+               echo "${params.branches}"
+            }
+        }
+
+        stage('Checkout') {
+            steps {
+                git branch: "${params.branches}", url: 'https://github.com/vijay2181/springboot-mongo-docker.git'
+            }
+        }
+        
+        stage('Build Maven Project') {
+            steps {
+                sh '$MAVEN clean package'
+            }
+        }
+        
+        stage('Run SonarScanner CLI on Maven project') {
+            steps {
+                sh '/opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner -Dsonar.host.url="${SONAR_HOST_URL}" -Dsonar.token="${SONAR_TOKEN}" '
+            }
+        }
+        
+        stage('Sonar Status Check') {
+            steps {
+                sh '''
+                    #!/bin/bash
+                    echo "This is a shell script within a Jenkins pipeline stage"
+                    response=$(curl -u "${SONAR_TOKEN}": "${SONAR_HOST_URL}/api/qualitygates/project_status?projectKey=${SONAR_PROJECT_KEY}")
+                    project_status=$(echo "$response" | jq -r '.projectStatus.status')
+                    echo "Project Status: $project_status"
+                    if [ "$project_status" == "OK" ]; then
+                        echo "Project Status is OK."
+                    else
+                        echo "Project Status is ERROR, Exiting pipeline."
+						exit 1
+                    fi
+                '''
+            }
+        }
+        stage('Deploy WAR file to Nexus') {
+            steps {
+                sh '$MAVEN clean deploy'
+            }
+        }
+        
+        stage("Docker Push Image") {
+            steps {
+                withCredentials([string(credentialsId: 'Docker_Password', variable: 'Docker_Password')]) {
+                    // Login to Docker Hub
+                    sh "docker login -u vijay2181 -p ${Docker_Password}"
+                }
+                // Build Docker image
+                sh "docker build -t vijay2181/springboot-mongo-docker:${env.BUILD_NUMBER} ."
+                
+                // Push Docker image to Docker Hub
+                sh "docker push vijay2181/springboot-mongo-docker:${env.BUILD_NUMBER}"
+            }
+        }
+		
+        stage("Deploy on Kubernetes cluster") {
+            steps {
+                // Build Docker image
+                sh "kubectl get nodes"
+				sh "kubectl apply -f springBootMongo.yml"
+				sh "sleep 10"
+				sh "kubectl get svc"
+
+            }
+        }
+
+    }
+}
+
+```
 
 
 
+## Addon
 
-
-
+- we can get latest version from nexus repository by using below script
+- 
 
 
 
