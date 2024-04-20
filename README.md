@@ -375,7 +375,49 @@ pipeline {
 ```
 
 
-## Nexus Integration
+## Nexus Installation and Integration
+
+```
+- take t2.medium instance
+
+- install java
+
+sudo dnf install java-1.8.0-amazon-corretto-devel
+
+[ec2-user@ip-172-31-16-247 ~]$ java -version
+openjdk version "1.8.0_402"
+OpenJDK Runtime Environment Corretto-8.402.08.1 (build 1.8.0_402-b08)
+OpenJDK 64-Bit Server VM Corretto-8.402.08.1 (build 25.402-b08, mixed mode)
+
+sudo wget -O nexus.tar.gz https://download.sonatype.com/nexus/3/latest-unix.tar.gz
+
+sudo tar -xvf nexus.tar.gz
+
+sudo mv nexus-3* nexus
+
+sudo adduser nexus
+
+visudo
+nexus ALL=(ALL)   NOPASSWD:ALL
+
+sudo chown -R nexus:nexus /opt/nexus
+sudo chown -R nexus:nexus /opt/sonatype-work
+
+sudo vi /opt/nexus/bin/nexus.rc
+#run_as_user="nexus"
+
+#running nexus as service 
+sudo ln -s /opt/nexus/bin/nexus /etc/init.d/nexus
+
+sudo su - nexus
+
+sudo systemctl enable nexus
+
+sudo systemctl start nexus
+
+sudo systemctl status nexus
+
+```
 
 - in pom.xml add the nexus server details
 - before adding, we need to create two repos(release,snapshot) and add those repos urls in pom.xml
@@ -396,6 +438,92 @@ stage('Deploy WAR file to Nexus') {
             }
         }
 ```
+
+
+```
+pipeline {
+    agent any
+    
+    environment {
+        MAVEN = "${tool 'MAVEN3.9.5'}/bin/mvn"
+        SONAR_HOST_URL = 'http://54.186.90.185:9000'
+        SONAR_TOKEN = credentials('sonar-token')
+        SONAR_PROJECT_KEY = 'test_project'
+        SONAR_PROJECT_NAME = 'test_project'
+    }
+    
+    stages {
+
+        stage('Print Selected Branch') {
+            steps {
+               echo "${params.branches}"
+            }
+        }
+
+        stage('Checkout') {
+            steps {
+                git branch: "${params.branches}", url: 'https://github.com/vijay2181/java-maven-SampleWarApp.git'
+            }
+        }
+        
+        stage('Build Maven Project') {
+            steps {
+                sh '$MAVEN clean package'
+            }
+        }
+        
+        stage('Run SonarScanner CLI on Maven project') {
+            steps {
+                sh '/opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner -Dsonar.host.url="${SONAR_HOST_URL}" -Dsonar.token="${SONAR_TOKEN}" '
+            }
+        }
+        
+        stage('Sonar Status Check') {
+            steps {
+                sh '''
+                    #!/bin/bash
+                    echo "This is a shell script within a Jenkins pipeline stage"
+                    response=$(curl -u "${SONAR_TOKEN}": "${SONAR_HOST_URL}/api/qualitygates/project_status?projectKey=${SONAR_PROJECT_KEY}")
+                    project_status=$(echo "$response" | jq -r '.projectStatus.status')
+                    echo "Project Status: $project_status"
+                    if [ "$project_status" == "OK" ]; then
+                        echo "Project Status is OK."
+                    else
+                        echo "Project Status is ERROR. Exiting the pipeline"
+                        exit 1
+                    fi
+                '''
+            }
+        }
+		
+        stage('Deploy WAR file to Nexus') {
+            steps {
+                sh '$MAVEN clean deploy'
+            }
+        }       
+    }
+}
+```
+
+Setup Kubernetes Cluster:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
