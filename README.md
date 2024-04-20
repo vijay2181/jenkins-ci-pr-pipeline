@@ -1,4 +1,7 @@
-# jenkins-release-pipeline
+# jenkins-release-pipeline-deploying-to-kubernetes
+
+![image](https://github.com/vijay2181/jenkins-release-pipeline/assets/66196388/31d371f0-b5cc-4772-afe1-d2a44fd9ce19)
+
 
 we will get all branches from git repo and build the pipeline based on selected branch
 
@@ -743,10 +746,52 @@ pipeline {
 ## Addon
 
 - we can get latest version from nexus repository by using below script
-- 
 
+```
+#!/bin/bash
 
+NEXUS_URL=http://35.85.147.67:8081
+MAVEN_REPO=mongo-snapshots
+GROUP_ID=com.mt
+ARTIFACT_ID=spring-boot-mongo
+VERSION=1.0-SNAPSHOT
+FILE_EXTENSION=jar
 
+# Function to extract the timestamp from the download URL
+extract_timestamp() {
+    url="$1"
+    timestamp=$(echo "$url" | grep -oE '[0-9]{8}\.[0-9]{6}-[0-9]+')
+    echo "$timestamp"
+}
+
+# Get the download URLs
+urls=$(curl -s --user admin:admin -X GET "${NEXUS_URL}/service/rest/v1/search/assets?repository=${MAVEN_REPO}&maven.groupId=${GROUP_ID}&maven.artifactId=${ARTIFACT_ID}&maven.baseVersion=${VERSION}&maven.extension=${FILE_EXTENSION}" -H  "accept: application/json"  | jq -rc '.items | .[].downloadUrl')
+
+# Initialize variables to hold the latest timestamp and URL
+latest_timestamp=""
+latest_url=""
+
+# Loop through each URL
+while IFS= read -r url; do
+    timestamp=$(extract_timestamp "$url")
+    # Compare timestamps
+    if [[ -z $latest_timestamp || $timestamp > $latest_timestamp ]]; then
+        latest_timestamp=$timestamp
+        latest_url=$url
+    fi
+done <<< "$urls"
+
+echo "Latest URL: $latest_url"
+
+final_url=$latest_url' --http-user=admin --http-password=admin'
+
+wget $final_url
+```
+
+- we can also use ansible to build docker image,tag,push and deploy
+```
+  https://github.com/vijay2181/jenkins-docker-ansible-deployment
+```
 
 
 
