@@ -315,7 +315,8 @@ mvn clean package: This step compiles the source code, runs tests, and packages 
 The important part is the compilation and test execution, which ensure the code is in a state that can be analyzed by SonarQube.
 
 Run SonarQube analysis:
-mvn sonar:sonar: This step does not directly analyze the JAR/WAR file but analyzes the source code and compiled bytecode present in the target directory.
+mvn sonar:sonar: This step does not directly analyze the JAR/WAR file but analyzes the source code and compiled
+bytecode present in the target directory.
 When you run mvn package, Maven places the compiled classes and other build artifacts in the target directory.
 SonarQube analyzes these artifacts, not the final JAR/WAR package.
 
