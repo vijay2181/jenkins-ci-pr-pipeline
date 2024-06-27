@@ -305,7 +305,23 @@ environment {
 ![image](https://github.com/vijay2181/jenkins-ci-pr-pipeline/assets/66196388/45550432-4ccd-49bf-8bfb-c644438dc60b)
 
 
+### Detailed Breakdown
 
+```
+Detailed Breakdown:
+====================
+Clean and package the project:
+mvn clean package: This step compiles the source code, runs tests, and packages the code into a JAR or WAR file.
+The important part is the compilation and test execution, which ensure the code is in a state that can be analyzed by SonarQube.
+
+Run SonarQube analysis:
+mvn sonar:sonar: This step does not directly analyze the JAR/WAR file but analyzes the source code and compiled bytecode present in the target directory.
+When you run mvn package, Maven places the compiled classes and other build artifacts in the target directory.
+SonarQube analyzes these artifacts, not the final JAR/WAR package.
+
+Deploy the project:
+mvn deploy: This step uploads the JAR/WAR to a remote repository or server, assuming it passed the analysis.
+```
 
 
 #### Final Release Pipeline
