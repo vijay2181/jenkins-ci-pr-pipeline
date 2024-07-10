@@ -812,6 +812,159 @@ wget $final_url
 
 
 
+### Language Detection and Dynamic Build Tool Pipeline 
+
+```
+pipeline {
+    agent any
+
+    environment {
+        MAVEN = "${tool 'MAVEN3.9.5'}/bin/mvn"
+        SONAR_HOST_URL = 'http://35.94.22.107:9000'
+        SONAR_TOKEN = credentials('sonar-token')
+        SONAR_PROJECT_KEY = 'test_project'
+        SONAR_PROJECT_NAME = 'test_project'
+    }
+
+    stages {
+
+        stage('Print Selected Branch') {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                    echo "${params.branches}"
+                }
+            }
+        }
+
+        stage('Checkout') {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                    git branch: "${params.branches}", url: 'https://github.com/vijay2181/springboot-mongo-docker.git'
+                }
+            }
+        }
+
+        stage('Detect Language') {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                    script {
+                        if (fileExists('pom.xml')) {
+                            env.BUILD_TOOL = 'maven'
+                        } else if (fileExists('requirements.txt')) {
+                            env.BUILD_TOOL = 'python'
+                        } else if (fileExists('package.json')) {
+                            env.BUILD_TOOL = 'nodejs'
+                        } else {
+                            error 'No recognized build file found. Aborting pipeline.'
+                        }
+                        echo "Build tool set to: ${env.BUILD_TOOL}"
+                    }
+                }
+            }
+        }
+
+        stage('Build Project') {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                    script {
+                        if (env.BUILD_TOOL == 'maven') {
+                            sh '$MAVEN clean package'
+                        } else if (env.BUILD_TOOL == 'python') {
+                            sh 'pip install -r requirements.txt'
+                        } else if (env.BUILD_TOOL == 'nodejs') {
+                            sh 'npm install'
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Run SonarScanner CLI on Maven project') {
+            when {
+                expression { env.BUILD_TOOL == 'maven' }
+            }
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                    sh '/opt/sonar-scanner-5.0.1.3006-linux/bin/sonar-scanner -Dsonar.host.url="${SONAR_HOST_URL}" -Dsonar.token="${SONAR_TOKEN}"'
+                }
+            }
+        }
+
+        stage('Sonar Status Check') {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                    sh '''
+                        #!/bin/bash
+                        echo "This is a shell script within a Jenkins pipeline stage"
+                        response=$(curl -u "${SONAR_TOKEN}": "${SONAR_HOST_URL}/api/qualitygates/project_status?projectKey=${SONAR_PROJECT_KEY}")
+                        project_status=$(echo "$response" | jq -r '.projectStatus.status')
+                        echo "Project Status: $project_status"
+                        if [ "$project_status" == "OK" ]; then
+                            echo "Project Status is OK."
+                        else
+                            echo "Project Status is ERROR, Exiting pipeline."
+                            exit 1
+                        fi
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy WAR file to Nexus') {
+            when {
+                expression { env.BUILD_TOOL == 'maven' }
+            }
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                    sh '$MAVEN clean deploy'
+                }
+            }
+        }
+
+        stage("Docker Push Image") {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                    withCredentials([string(credentialsId: 'Docker_Password', variable: 'Docker_Password')]) {
+                        // Login to Docker Hub
+                        sh "docker login -u vijay2181 -p ${Docker_Password}"
+                    }
+                    // Build Docker image
+                    sh "docker build -t vijay2181/springboot-mongo-docker:${env.BUILD_NUMBER} ."
+                    
+                    // Push Docker image to Docker Hub
+                    sh "docker push vijay2181/springboot-mongo-docker:${env.BUILD_NUMBER}"
+                }
+            }
+        }
+
+        stage("Deploy on Kubernetes cluster") {
+            steps {
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                    sh "kubectl get nodes"
+                    sh "kubectl apply -f springBootMongo.yml"
+                    sh "sleep 10"
+                    sh "kubectl get svc"
+                }
+            }
+        }
+
+    }
+
+    post {
+        always {
+            echo 'This will always run, regardless of the pipeline outcome.'
+        }
+        success {
+            echo 'This will run only if the pipeline succeeds.'
+        }
+        failure {
+            echo 'This will run only if the pipeline fails.'
+        }
+    }
+}
+
+```
+
 
 
 
